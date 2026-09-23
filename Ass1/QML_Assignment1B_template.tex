@@ -1,0 +1,163 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+
+\title{
+\textbf{Birla Institute of Technology and Science, Pilani}\\
+\textbf{Quantum Machine Learning (AIMLZG545)}\\
+\vspace{0.3cm}
+\textbf{Assignment 1: Literature Survey Report}
+}
+
+\author{
+Student Name: Ayushi Gupta \\
+Student ID: 2024ac05720
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\textbf{Objective:} Identify a classical problem with scaling limitations.
+
+\textbf{Problem Chosen:} Molecular Ground State Energy Estimation
+
+%================================================
+\section*{(a) What is the Problem?}
+
+The \textbf{Molecular Ground State Energy Estimation} problem involves computing the lowest energy state (ground state) of a molecular system. The ground state energy is the minimum eigenvalue of the molecular Hamiltonian $\hat{H}$, obtained by solving the Schr\"{o}dinger equation:
+\[
+\hat{H}|\psi\rangle = E|\psi\rangle
+\]
+
+The ground state energy $E_0$ determines how a molecule behaves --- its stability, reactivity, and interactions with other molecules.
+
+\subsection*{Why This Problem Matters --- Drug Discovery Example}
+
+The most compelling application is \textbf{drug discovery}. To design a new medicine, scientists must predict how a candidate drug molecule interacts with a target protein in the body. This requires computing the ground state energy of the drug-protein molecular complex.
+
+\begin{itemize}
+    \item \textbf{Binding affinity:} Whether a drug binds to a protein depends on the ground state energy of the combined system. Lower energy = stronger binding = more effective drug.
+    \item \textbf{Molecular screening:} Pharmaceutical companies need to screen millions of candidate molecules. Each screening requires a ground state energy calculation to predict if the molecule will work as a drug.
+    \item \textbf{Side effects:} Predicting unwanted drug-protein interactions (side effects) also requires computing ground state energies of the drug with off-target proteins.
+    \item \textbf{The bottleneck:} A typical drug-protein system involves hundreds to thousands of electrons. Computing its ground state energy exactly is classically impossible due to the exponential scaling described below.
+\end{itemize}
+
+Today, drug development takes 10--15 years and costs \$2--3 billion per approved drug, largely because classical computers cannot accurately simulate molecular interactions at the quantum level.
+
+\subsection*{The Scaling Problem}
+
+The molecular Hamiltonian $\hat{H}$ for $n$ electrons is a matrix of size $2^n \times 2^n$. As the number of electrons increases, this matrix grows \textit{exponentially}, making it fundamentally intractable for classical computers beyond small molecules.
+
+\begin{center}
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Molecule} & \textbf{Electrons} & \textbf{State Space Size} & \textbf{Classical Feasibility} \\
+\hline
+Water (H$_2$O) & 10 & $2^{10} = 1{,}024$ & Tractable \\
+Iron-Sulfur cluster & 30 & $2^{30} \approx 10^{9}$ & Difficult \\
+Caffeine (C$_8$H$_{10}$N$_4$O$_2$) & 102 & $2^{102} \approx 10^{30}$ & Impossible \\
+Protein-drug complex & $\sim$1000s & $2^{1000}$ & Completely impossible \\
+\hline
+\end{tabular}
+\end{center}
+
+%================================================
+\section*{(b) Why is it Difficult to Solve Classically?}
+
+The difficulty arises from a fundamental mismatch: \textbf{nature is quantum, but classical computers are not.}
+
+\subsection*{Root Cause: Exponential State Space}
+
+A system of $n$ quantum particles (electrons) can exist in a superposition of $2^n$ basis states simultaneously. To describe this system, a classical computer must store all $2^n$ complex amplitudes explicitly in memory. This leads to:
+
+\begin{itemize}
+    \item \textbf{Exponential memory requirement:}
+    \begin{itemize}
+        \item 20 electrons $\rightarrow$ $2^{20} \approx 10^6$ parameters (feasible)
+        \item 40 electrons $\rightarrow$ $2^{40} \approx 10^{12}$ parameters (terabytes of RAM)
+        \item 50 electrons $\rightarrow$ $2^{50} \approx 10^{15}$ parameters ($\sim$8 petabytes --- exceeds all RAM on Earth)
+    \end{itemize}
+    
+    \item \textbf{Exponential time complexity:} The exact classical method (Full Configuration Interaction, FCI) requires diagonalizing the $2^n \times 2^n$ Hamiltonian matrix, with time complexity $O(2^n)$. Even on the fastest supercomputer, this is infeasible for $n > 20$.
+    
+    \item \textbf{Electron correlation:} Electrons interact via Coulomb repulsion. Each electron's state depends on ALL other electrons simultaneously, preventing any simplification by treating electrons independently.
+    
+    \item \textbf{No efficient classical algorithm exists:} Unlike problems such as sorting or graph search, where clever algorithms reduce complexity, the exponential scaling here is intrinsic to the physics --- classical bits cannot efficiently represent quantum states.
+\end{itemize}
+
+\subsection*{Approximate Classical Methods (All Have Trade-offs)}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|l|}
+\hline
+\textbf{Method} & \textbf{Scaling} & \textbf{Max Size} & \textbf{Accurate?} & \textbf{Key Limitation} \\
+\hline
+Hartree-Fock & $O(M^4)$ & Large & No & Ignores electron correlation \\
+DFT & $O(M^3)$ & Large & Sometimes & Fails for strongly correlated systems \\
+CCSD(T) & $O(M^7)$ & $\sim$50 atoms & Usually & Too expensive for large molecules \\
+FCI (Exact) & $O(2^n)$ & $\sim$20 electrons & Yes & Exponentially expensive \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Brief overview of each method:}
+\begin{itemize}
+    \item \textbf{Hartree-Fock (HF):} Treats each electron as moving in the average field of all other electrons. It ignores the instantaneous electron-electron repulsion (correlation), so it gives qualitatively correct but quantitatively inaccurate results. Fast ($O(M^4)$) but errors can be 5--10\%.
+    
+    \item \textbf{Density Functional Theory (DFT):} Instead of tracking each electron's wavefunction, it uses the total electron density $\rho(\mathbf{r})$ to compute energy. Scales as $O(M^3)$ and works well for many systems, but relies on approximate ``exchange-correlation functionals'' that fail for strongly correlated molecules (e.g., transition metal catalysts).
+    
+    \item \textbf{CCSD(T) --- Coupled Cluster:} Systematically accounts for electron pairs (doubles) and triples of interacting electrons. Often called the ``gold standard'' of quantum chemistry due to high accuracy. However, its $O(M^7)$ scaling limits it to $\sim$50 atoms --- far too small for drug-protein systems.
+    
+    \item \textbf{FCI --- Full Configuration Interaction:} The only exact classical method. It considers \textit{every possible} arrangement of electrons. Guarantees the correct answer but scales as $O(2^n)$ --- making it usable only for molecules with $\leq$20 electrons ($\leq$10 atoms).
+\end{itemize}
+
+\textit{No classical method exists that is simultaneously fast, accurate, and general-purpose.}
+
+%================================================
+\section*{(c) What are the Key Limitations?}
+
+The key scaling limitations that make this problem classically intractable are:
+
+\begin{enumerate}
+    \item \textbf{Time:} The exact method (FCI) scales as $O(2^n)$. For a caffeine molecule with 102 electrons, the computation would require more time than the age of the universe ($\sim 10^{10}$ years), even on the world's fastest supercomputer.
+    
+    \item \textbf{Dimensionality (Curse of Dimensionality):} The quantum wavefunction $|\psi\rangle$ lives in a $2^n$-dimensional Hilbert space. Each additional electron \textit{doubles} the number of parameters needed. This exponential growth cannot be avoided without sacrificing accuracy.
+    
+    \item \textbf{Memory/Data:} Storing the full wavefunction of just 50 electrons requires $\approx$8 petabytes of RAM --- more than any existing computer possesses. Even representing the problem input exceeds classical hardware limits.
+    
+    \item \textbf{Accuracy vs.\ Speed Trade-off:}
+    \begin{itemize}
+        \item Fast approximate methods (DFT, Hartree-Fock): errors of 1--5\%, unreliable for important systems.
+        \item Accurate methods (FCI, CCSD(T)): exponentially slow or $O(M^7)$, limited to small molecules.
+    \end{itemize}
+    No classical algorithm achieves both chemical accuracy ($<$1 kcal/mol error) and polynomial scaling.
+    
+    \item \textbf{Strong Correlation Problem:} Many industrially important molecules --- catalysts (FeMoCo), high-temperature superconductors, biological enzymes --- are ``strongly correlated,'' meaning all classical approximation methods break down completely for these systems.
+\end{enumerate}
+
+\vspace{6pt}
+\textbf{Summary:} The molecular ground state energy problem has \textit{inherent exponential scaling} ($2^n$) in time, memory, and dimensionality. This is not a limitation of current algorithms but a fundamental mismatch between classical computation and quantum physics.
+
+%================================================
+\section*{(d) References}
+
+\begin{enumerate}
+    \item Peruzzo, A., McClean, J., Shadbolt, P., et al., ``A variational eigenvalue solver on a photonic quantum processor,'' \textit{Nature Communications}, vol.\ 5, article 4213, 2014.
+    \item McArdle, S., Endo, S., Aspuru-Guzik, A., Benjamin, S. C., \& Yuan, X., ``Quantum computational chemistry,'' \textit{Reviews of Modern Physics}, vol.\ 92, no.\ 1, 015003, 2020.
+    \item Cao, Y., Romero, J., Olson, J. P., et al., ``Quantum Chemistry in the Age of Quantum Computing,'' \textit{Chemical Reviews}, vol.\ 119, no.\ 19, pp.\ 10856--10915, 2019.
+\end{enumerate}
+
+%================================================
+\end{document}
+\end{enumerate}
+
+%================================================
+\end{document}

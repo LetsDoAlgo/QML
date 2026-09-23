@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QML Assignment 2 Solution</title>
+<style>
+:root { --ink:#111; --muted:#4b5563; --accent:#0f4c81; --bg:#fff; }
+@page { size: A4; margin: 20mm 16mm; }
+body { font-family: "Segoe UI", Calibri, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.55; font-size: 11pt; }
+main { max-width: 820px; margin: 0 auto; }
+h1,h2,h3 { color: var(--accent); line-height: 1.25; page-break-after: avoid; }
+h1 { font-size: 22pt; margin: 0 0 8px; }
+h2 { font-size: 16pt; margin-top: 20px; }
+h3 { font-size: 13pt; margin-top: 14px; }
+hr { border: 0; border-top: 1px solid #d1d5db; margin: 16px 0; }
+code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+pre { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10.5pt; }
+th, td { border: 1px solid #d1d5db; padding: 6px 8px; vertical-align: top; }
+th { background: #f8fafc; }
+a { color: var(--accent); text-decoration: none; }
+ul,ol { padding-left: 24px; }
+img { display:block; margin: 10px auto 14px auto; max-width: 100%; height: auto; border: 1px solid #e5e7eb; border-radius: 6px; }
+</style>
+<script>
+window.MathJax = { tex: { inlineMath: [['$','$'], ['\(','\)']], displayMath: [['$$','$$'], ['\[','\]']] }, svg: {fontCache: 'global'} };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+<main>
+<h1>Quantum Machine Learning (AIMLZG545)</h1>
+<h2>Assignment 2 Solution: Quantum Approach to a Classical Problem</h2>
+<p><strong>Student Name:</strong> Ayushi Gupta<br />
+<strong>Student ID:</strong> 2024AC05720</p>
+<h2>Index</h2>
+<ul>
+<li><a href="#assignment-2-solution-quantum-approach-to-a-classical-problem">Assignment 2 Solution: Quantum Approach to a Classical Problem</a></li>
+<li><a href="#problem-chosen">Problem Chosen</a></li>
+<li><a href="#1-problem-recap">1. Problem Recap</a></li>
+<li><a href="#2-data-representation">2. Data Representation</a></li>
+<li><a href="#3-quantum-model-design">3. Quantum Model Design</a></li>
+<li><a href="#4-implementation-and-results">4. Implementation and Results</a></li>
+<li><a href="#5-discussion-and-limitations">5. Discussion and Limitations</a></li>
+<li><a href="#6-references">6. References</a></li>
+</ul>
+<h2>Problem Chosen</h2>
+<p>Following Assignment 1, I use the same classical problem: <strong>molecular ground-state energy estimation for drug discovery</strong>. The concrete quantum demonstration uses the hydrogen molecule (H2) as a minimal surrogate system, while the motivation remains the larger drug-discovery setting described in Assignment 1B.</p>
+<hr />
+<h2>1. Problem Recap</h2>
+<h3>What is the problem?</h3>
+<p>The task is to estimate the <strong>ground-state energy</strong> of a molecule, which is the minimum eigenvalue of its Hamiltonian $H$. In computational chemistry, this energy determines molecular stability, binding behavior, and reaction pathways. In drug discovery, accurate energy estimation is essential for predicting how candidate molecules interact with biological targets.</p>
+<p>Mathematically, the problem is to solve:</p>
+<p>$$
+H |\psi\rangle = E |\psi\rangle
+$$</p>
+<p>and identify the minimum energy $E_0$.</p>
+<h3>Why is it difficult classically?</h3>
+<p>This problem becomes hard because the Hilbert-space dimension grows exponentially with the number of electrons. A molecule with $n$ effective spin orbitals requires a state description over roughly $2^n$ basis states. Exact methods such as Full Configuration Interaction therefore become infeasible beyond very small systems.</p>
+<p>This is directly relevant to drug discovery because realistic molecules and protein-ligand systems are far larger than what exact classical simulation can handle.</p>
+<hr />
+<h2>2. Data Representation</h2>
+<h3>Input features</h3>
+<p>For this assignment I use a small molecular dataset built from <strong>14 H2 bond distances</strong>. Each sample represents one molecular geometry. The features for each sample are:</p>
+<ul>
+<li>Bond distance $r$</li>
+<li>Hamiltonian coefficient for $II$</li>
+<li>Hamiltonian coefficient for $IZ$</li>
+<li>Hamiltonian coefficient for $ZI$</li>
+<li>Hamiltonian coefficient for $ZZ$</li>
+<li>Hamiltonian coefficient for $XX$</li>
+</ul>
+<p>These coefficients define the 2-qubit Hamiltonian after Jordan-Wigner mapping:</p>
+<p>$$
+H = c_{II} II + c_{IZ} IZ + c_{ZI} ZI + c_{ZZ} ZZ + c_{XX} XX
+$$</p>
+<p>At the equilibrium geometry $r = 0.735$ Angstrom, the Hamiltonian used is:</p>
+<p>$$
+H = -1.0523732 II + 0.3979374 IZ - 0.3979374 ZI - 0.0112801 ZZ + 0.1809312 XX
+$$</p>
+<h3>How the data is represented in the quantum workflow</h3>
+<p>This solution uses a <strong>Variational Quantum Circuit</strong>. The molecular sample is specified classically through the Hamiltonian coefficients, and the quantum circuit prepares a trial wavefunction whose energy is measured against that Hamiltonian.</p>
+<p>The circuit itself uses <strong>angle encoding through trainable $R_y$ rotations</strong>. The variational angles are optimized by a classical optimizer, so the encoded quantum state changes iteratively until the measured energy is minimized.</p>
+<h3>Encoding method used</h3>
+<p>The encoding method is <strong>angle encoding</strong> because the circuit state is prepared using rotation angles in $R_y$ gates. The Hamiltonian coefficients are not amplitude-encoded; instead, they define the observable whose expectation value is measured.</p>
+<hr />
+<h2>3. Quantum Model Design</h2>
+<h3>Chosen model</h3>
+<p>I use a <strong>Variational Quantum Circuit (VQC)</strong> in the VQE style.</p>
+<h3>Circuit architecture</h3>
+<p>The 2-qubit ansatz is:</p>
+<pre><code class="language-text">     ┌────────────┐     ┌────────────┐
+q_0: ┤ Ry(2.9006) ├──■──┤ Ry(6.1925) ├
+     ├────────────┤┌─┴─┐├────────────┤
+q_1: ┤ Ry(5.9041) ├┤ X ├┤ Ry(2.7523) ├
+     └────────────┘└───┘└────────────┘
+</code></pre>
+<p>The trainable structure before optimization is:</p>
+<ol>
+<li>$R_y(\theta_0)$ on qubit 0</li>
+<li>$R_y(\theta_1)$ on qubit 1</li>
+<li>CNOT from qubit 0 to qubit 1</li>
+<li>$R_y(\theta_2)$ on qubit 0</li>
+<li>$R_y(\theta_3)$ on qubit 1</li>
+</ol>
+<h3>Gates used</h3>
+<ul>
+<li>$R_y$ rotation gates for parameterized state preparation</li>
+<li>CNOT for two-qubit entanglement</li>
+</ul>
+<h3>How entanglement is introduced</h3>
+<p>Entanglement is introduced through the <strong>CNOT</strong> gate. This matters because molecular wavefunctions contain electron correlation, and a separable product state cannot model that correlation accurately.</p>
+<h3>What is measured?</h3>
+<p>The measured quantity is the <strong>expectation value of the Hamiltonian</strong>:</p>
+<p>$$
+E(\theta) = \langle \psi(\theta) | H | \psi(\theta) \rangle
+$$</p>
+<p>The classical optimizer minimizes this value, and the lowest value approximates the molecular ground-state energy.</p>
+<hr />
+<h2>4. Implementation and Results</h2>
+<h3>Dataset description</h3>
+<ul>
+<li>Dataset size: 14 molecular geometries</li>
+<li>System: H2 molecule mapped to 2 qubits</li>
+<li>Feature set: bond distance plus five Pauli-term coefficients</li>
+<li>Qubit count used: 2, which stays within the assignment limit of 6 qubits</li>
+</ul>
+<h3>Implementation summary</h3>
+<p>I implemented the workflow in Qiskit as follows:</p>
+<ol>
+<li>Build the 2-qubit Hamiltonian from Pauli coefficients.</li>
+<li>Compute the exact ground-state energy by classical diagonalization.</li>
+<li>Build a 4-parameter VQE ansatz.</li>
+<li>Use COBYLA to minimize the Hamiltonian expectation value.</li>
+<li>Repeat the process over multiple bond distances to obtain a potential-energy surface.</li>
+</ol>
+<h3>Validated numerical results</h3>
+<p>For the equilibrium geometry $r = 0.735$ Angstrom:</p>
+<ul>
+<li>Exact ground-state energy: <strong>-1.857275 Hartree</strong></li>
+<li>VQE ground-state energy: <strong>-1.857275 Hartree</strong></li>
+<li>Absolute error: <strong>0.00000000 Hartree</strong></li>
+<li>Optimizer evaluations: <strong>116</strong></li>
+</ul>
+<p>Optimized parameters:</p>
+<p>$$
+[2.900646, 5.904094, 6.192500, 2.752317]
+$$</p>
+<h3>Optimized-state probability distribution</h3>
+<p>The optimized quantum state has the following computational-basis probabilities:</p>
+<ul>
+<li>$P(00) = 0.000000$</li>
+<li>$P(01) = 0.987560$</li>
+<li>$P(10) = 0.012440$</li>
+<li>$P(11) = 0.000000$</li>
+</ul>
+<p>The distribution plot is shown below:</p>
+<p><img alt="Optimized state probability distribution" src="figures/optimized_state_probabilities.png" /></p>
+<h3>Loss vs iterations</h3>
+<p>The VQE loss curve is shown below:</p>
+<p><img alt="VQE loss vs iterations" src="figures/vqe_loss.png" /></p>
+<p>Interpretation:</p>
+<ul>
+<li>The energy decreases over iterations as the classical optimizer updates the circuit parameters.</li>
+<li>Convergence to the exact line indicates that the ansatz is expressive enough for this 2-qubit problem.</li>
+</ul>
+<h3>Potential energy surface</h3>
+<p>I also evaluated the method across 14 bond distances. The resulting potential-energy surface is shown below:</p>
+<p><img alt="H2 potential energy surface" src="figures/h2_potential_energy_surface.png" /></p>
+<p>Key result:</p>
+<ul>
+<li>Lowest VQE energy: <strong>-1.857275 Hartree</strong> at <strong>0.735 Angstrom</strong></li>
+<li>Lowest exact energy: <strong>-1.857275 Hartree</strong> at <strong>0.735 Angstrom</strong></li>
+<li>Maximum absolute error across the 14-point curve: <strong>0.00000000 Hartree</strong></li>
+</ul>
+<p>Interpretation:</p>
+<ul>
+<li>The quantum model reproduces the exact potential-energy surface for this small example.</li>
+<li>The minimum occurs at the expected equilibrium distance, so the model captures the physically correct stable geometry.</li>
+</ul>
+<h3>Final output/result</h3>
+<p>The final output is a quantum-estimated ground-state energy for each molecular geometry. In this implementation, the VQE result matches the exact ground-state energy for the 2-qubit H2 benchmark, demonstrating that the hybrid quantum-classical workflow is correct for a toy molecular system.</p>
+<hr />
+<h2>5. Discussion and Limitations</h2>
+<h3>Does the quantum approach provide any advantage?</h3>
+<p>For this specific 2-qubit H2 example, there is <strong>no practical runtime advantage</strong> over classical diagonalization because the Hamiltonian is only $4 \times 4$. However, the value of the approach is conceptual and architectural:</p>
+<ul>
+<li>It uses the same hybrid method intended for larger molecular systems.</li>
+<li>It represents wavefunctions natively in a quantum state space.</li>
+<li>It provides a pathway toward harder chemistry problems where classical exact methods fail.</li>
+</ul>
+<h3>Limitations of this approach</h3>
+<p>This solution has several important limitations:</p>
+<ul>
+<li>The molecule is extremely small and does not represent the full complexity of drug molecules.</li>
+<li>The Hamiltonian coefficients are precomputed rather than generated within the workflow using a full chemistry stack.</li>
+<li>The simulation is noiseless, so it does not reflect real hardware behavior.</li>
+<li>The ansatz depth is shallow and tailored to a very small system.</li>
+</ul>
+<h3>Effect of NISQ constraints</h3>
+<p>NISQ-era hardware would affect this workflow in several ways:</p>
+<ul>
+<li><strong>Noise:</strong> expectation values become noisy, which can distort the optimizer landscape.</li>
+<li><strong>Limited qubits:</strong> realistic drug-relevant molecules require far more than 2 qubits.</li>
+<li><strong>Circuit depth limits:</strong> deeper ansatze needed for larger molecules may exceed coherence times.</li>
+<li><strong>Measurement overhead:</strong> accurate energy estimation requires many repeated measurements.</li>
+</ul>
+<p>So while this result is encouraging as a proof of concept, current NISQ devices are still far from solving production-scale drug-discovery chemistry.</p>
+<hr />
+<h2>6. References</h2>
+<ol>
+<li>Peruzzo, A. et al. "A variational eigenvalue solver on a photonic quantum processor." Nature Communications, 2014.</li>
+<li>McArdle, S. et al. "Quantum computational chemistry." Reviews of Modern Physics, 2020.</li>
+<li>Cao, Y. et al. "Quantum Chemistry in the Age of Quantum Computing." Chemical Reviews, 2019.</li>
+<li>Qiskit documentation for <code>QuantumCircuit</code>, <code>SparsePauliOp</code>, and statevector simulation.</li>
+</ol>
+</main>
+</body>
+</html>
